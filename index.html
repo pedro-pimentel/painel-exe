@@ -50,15 +50,22 @@
             </div>
         </div>
 
-        <!-- FILTROS -->
-        <div class="px-6 py-3 border-b border-gray-100 flex gap-4 items-center shrink-0">
+        <!-- FILTROS PRINCIPAIS E MESES -->
+        <div class="px-6 py-3 border-b border-gray-100 flex gap-4 items-center shrink-0 flex-wrap">
             <input type="text" id="searchInput" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 focus:bg-white focus:outline-none w-[250px]" placeholder="Buscar...">
-            <select id="catFilter" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 focus:bg-white focus:outline-none flex-grow">
+            <select id="catFilter" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 focus:bg-white focus:outline-none w-[200px]">
                 <option value="">Todas as Categorias</option>
             </select>
-            <input type="date" id="dateStart" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-600">
-            <input type="date" id="dateEnd" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 text-gray-600">
-            <button id="btnLimparFiltros" class="bg-gray-100 text-gray-600 border border-gray-300 px-4 py-2 rounded-md font-bold text-sm hover:bg-gray-200 transition-colors">Limpar</button>
+            
+            <!-- Divisória visual -->
+            <div class="h-6 w-px bg-gray-300 mx-1"></div>
+            
+            <!-- Botões de Meses Gerados Dinamicamente -->
+            <div id="monthFilters" class="flex gap-2 flex-grow overflow-x-auto pb-1 items-center">
+                <span class="text-sm font-bold text-gray-400 italic">Suba planilhas para gerar os meses...</span>
+            </div>
+
+            <button id="btnLimparFiltros" class="bg-gray-100 text-gray-600 border border-gray-300 px-4 py-2 rounded-md font-bold text-sm hover:bg-gray-200 transition-colors">Limpar Tudo</button>
         </div>
 
         <!-- CONTEÚDO SCROLLÁVEL -->
@@ -126,16 +133,16 @@
         let baseDeDados = JSON.parse(localStorage.getItem(DB_KEY) || '[]');
         let chartCatInst = null;
         let chartProjInst = null;
+        let selectedMonth = ''; // Armazena o mês filtrado atualmente (ex: '2026-07')
 
         // Elementos DOM
         const fileUpload = document.getElementById('fileUpload');
         const btnClearDB = document.getElementById('btnClearDB');
         const searchInput = document.getElementById('searchInput');
         const catFilter = document.getElementById('catFilter');
-        const dateStart = document.getElementById('dateStart');
-        const dateEnd = document.getElementById('dateEnd');
         const btnLimpar = document.getElementById('btnLimparFiltros');
         const dbStatusInfo = document.getElementById('dbStatusInfo');
+        const monthFiltersContainer = document.getElementById('monthFilters');
 
         // ==========================================
         // UTILITÁRIOS E PARSE
@@ -154,13 +161,13 @@
 
         function parseDate(val) {
             if (!val) return null;
-            if (typeof val === 'number') { // Serial do Excel
+            if (typeof val === 'number') { 
                 return new Date(Math.round((val - 25569) * 86400 * 1000)).toISOString().split('T')[0];
             }
             const str = String(val);
             const parts = str.match(/(\d{2})\/(\d{2})\/(\d{4})/);
             if (parts) return `${parts[3]}-${parts[2]}-${parts[1]}`;
-            return null; // Ignora se não for data válida
+            return null; 
         }
 
         const getVal = (keys, row) => {
@@ -212,6 +219,7 @@
             if(confirm('Apagar todo o histórico financeiro salvo neste navegador?')) {
                 localStorage.removeItem(DB_KEY);
                 baseDeDados = [];
+                selectedMonth = '';
                 atualizarDashboard();
             }
         });
@@ -256,12 +264,55 @@
         }
 
         // ==========================================
+        // RENDERIZAÇÃO DOS BOTÕES DE MESES
+        // ==========================================
+        function renderizarBotoesMeses() {
+            if (baseDeDados.length === 0) {
+                monthFiltersContainer.innerHTML = '<span class="text-sm font-bold text-gray-400 italic">Suba planilhas para gerar os meses...</span>';
+                return;
+            }
+
+            const mesesSet = new Set();
+            baseDeDados.forEach(d => {
+                if (d.dataISO) mesesSet.add(d.dataISO.substring(0, 7)); // Formato YYYY-MM
+            });
+
+            const mesesOrdenados = Array.from(mesesSet).sort();
+            const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            
+            monthFiltersContainer.innerHTML = '';
+
+            mesesOrdenados.forEach(m => {
+                const [ano, mes] = m.split('-');
+                const mesIndex = parseInt(mes, 10) - 1;
+                const label = `${nomesMeses[mesIndex]}/${ano}`;
+
+                const btn = document.createElement('button');
+                const isSelected = selectedMonth === m;
+
+                btn.className = isSelected 
+                    ? "bg-blue-600 text-white border border-blue-600 px-4 py-2 rounded-md font-bold text-sm shadow-sm transition-colors whitespace-nowrap"
+                    : "bg-white text-gray-600 border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-md font-bold text-sm shadow-sm transition-colors whitespace-nowrap";
+                
+                btn.innerText = label;
+                btn.onclick = () => {
+                    // Se clicar no botão já selecionado, ele limpa (desmarca)
+                    selectedMonth = selectedMonth === m ? '' : m;
+                    atualizarDashboard();
+                };
+                monthFiltersContainer.appendChild(btn);
+            });
+        }
+
+        // ==========================================
         // ATUALIZAÇÃO DO DASHBOARD
         // ==========================================
         function atualizarDashboard() {
             dbStatusInfo.innerText = `Banco de Dados Local: ${baseDeDados.length} lançamentos acumulados.`;
+            
+            renderizarBotoesMeses();
 
-            // Atualiza Select de Categorias
+            // Atualiza Select de Categorias dinamicamente
             const catSet = new Set(baseDeDados.map(d => d.categoria));
             const currentCat = catFilter.value;
             catFilter.innerHTML = '<option value="">Todas as Categorias</option>';
@@ -276,16 +327,13 @@
 
             const termo = searchInput.value.toLowerCase().trim();
             const catSelected = catFilter.value;
-            const dIni = dateStart.value;
-            const dFim = dateEnd.value;
 
             // Filtra os dados
             const dadosFiltrados = baseDeDados.filter(d => {
                 let matchBusca = !termo || `${d.fornecedor} ${d.categoria}`.toLowerCase().includes(termo);
                 let matchCat = !catSelected || d.categoria === catSelected;
-                let matchDataIni = !dIni || (d.dataISO && d.dataISO >= dIni);
-                let matchDataFim = !dFim || (d.dataISO && d.dataISO <= dFim);
-                return matchBusca && matchCat && matchDataIni && matchDataFim;
+                let matchMonth = !selectedMonth || (d.dataISO && d.dataISO.startsWith(selectedMonth));
+                return matchBusca && matchCat && matchMonth;
             });
 
             let receitas = 0;
@@ -303,7 +351,7 @@
                         aggDatas[labelData] = (aggDatas[labelData] || 0) + d.valorAbsoluto;
                     }
                 } else {
-                    // FILTRO DE DRE: Ignora valores positivos que não são vendas reais (Transferências, Saldos)
+                    // FILTRO DE DRE: Ignora valores positivos que não são vendas reais
                     const catBaixa = d.categoria.toLowerCase();
                     const isFalsoGanho = catBaixa.includes('saldo inicial') || 
                                          catBaixa.includes('transferência') || 
@@ -339,9 +387,9 @@
             if (baseDeDados.length === 0) {
                 radarContainer.innerHTML = `<div class="text-center p-4 text-gray-400 text-xs mt-4">Carregue planilhas para gerar o radar.</div>`;
             } else if (dadosFiltrados.length === baseDeDados.length) {
-                radarContainer.innerHTML = `<div class="text-center p-4 text-gray-400 text-xs mt-4">Filtre por um mês específico (Data Início/Fim) para comparar com o histórico.</div>`;
+                radarContainer.innerHTML = `<div class="text-center p-4 text-gray-400 text-xs mt-4">Clique no botão de um Mês específico acima para comparar a inflação atual com a sua base histórica.</div>`;
             } else if (alertas.length === 0) {
-                radarContainer.innerHTML = `<div class="text-center p-4 text-emerald-600 text-xs font-bold bg-emerald-50 rounded mt-4">✅ Nenhum aumento detectado.</div>`;
+                radarContainer.innerHTML = `<div class="text-center p-4 text-emerald-600 text-xs font-bold bg-emerald-50 rounded mt-4">✅ Nenhum aumento detectado no mês selecionado.</div>`;
             } else {
                 alertas.slice(0, 8).forEach(alerta => {
                     radarContainer.innerHTML += `
@@ -414,10 +462,13 @@
             });
         }
 
-        // Eventos
-        [searchInput, catFilter, dateStart, dateEnd].forEach(el => el.addEventListener('input', atualizarDashboard));
+        // Eventos de Filtro
+        [searchInput, catFilter].forEach(el => el.addEventListener('input', atualizarDashboard));
+        
         btnLimpar.addEventListener('click', () => {
-            searchInput.value = ''; catFilter.value = ''; dateStart.value = ''; dateEnd.value = '';
+            searchInput.value = ''; 
+            catFilter.value = ''; 
+            selectedMonth = '';
             atualizarDashboard();
         });
 
