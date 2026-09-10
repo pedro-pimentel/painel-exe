@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>X-Fin Executivo | DRE & Inteligência</title>
     
-    <!-- Tailwind CSS para Estilização idêntica à imagem -->
+    <!-- Tailwind CSS para Estilização -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Bibliotecas de Leitura de Excel e Gráficos -->
@@ -17,7 +17,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #1e293b; padding: 20px; }
         
-        /* Estilos específicos do Radar iguais à imagem */
+        /* Estilos específicos do Radar */
         .radar-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 240px; padding-right: 4px; }
         .radar-item { background: #fef2f2; border-left: 3px solid #ef4444; padding: 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
         .radar-badge { background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; }
@@ -29,7 +29,7 @@
 </head>
 <body>
 
-    <!-- CONTAINER PRINCIPAL (Bordas arredondadas e fundo branco igual ao print) -->
+    <!-- CONTAINER PRINCIPAL -->
     <div class="bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden max-w-[1400px] mx-auto" style="height: calc(100vh - 40px);">
         
         <!-- HEADER -->
@@ -66,7 +66,7 @@
             
             <div id="dbStatusInfo" class="text-xs font-bold text-blue-600 mb-[-10px]">Banco de Dados Local: 0 lançamentos carregados.</div>
 
-            <!-- KPIs (Cores Exatas da Imagem) -->
+            <!-- KPIs -->
             <div class="grid grid-cols-4 gap-4">
                 <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 border-t-4 border-t-emerald-500 flex flex-col justify-center">
                     <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Receitas (Entradas)</span>
@@ -194,13 +194,9 @@
                             categoria: String(getVal(['Categoria', 'Centro'], row) || 'Sem Categoria').trim(),
                             valorOriginal: rawValor,
                             valorAbsoluto: Math.abs(rawValor),
-                            isDespesa: rawValor < 0 // Se vier negativo, é despesa. Se vier tudo positivo (ex: Contas a Pagar), ajuste aqui se necessário
+                            isDespesa: rawValor < 0 
                         };
                     }).filter(d => d.valorAbsoluto > 0);
-
-                    // Se a sua exportação de Contas a Pagar do Excel vier com valores POSITIVOS, 
-                    // descomente a linha abaixo para forçar tudo como despesa:
-                    // processados.forEach(d => d.isDespesa = true);
 
                     baseDeDados = [...baseDeDados, ...processados];
                     localStorage.setItem(DB_KEY, JSON.stringify(baseDeDados));
@@ -307,7 +303,16 @@
                         aggDatas[labelData] = (aggDatas[labelData] || 0) + d.valorAbsoluto;
                     }
                 } else {
-                    receitas += d.valorAbsoluto;
+                    // FILTRO DE DRE: Ignora valores positivos que não são vendas reais (Transferências, Saldos)
+                    const catBaixa = d.categoria.toLowerCase();
+                    const isFalsoGanho = catBaixa.includes('saldo inicial') || 
+                                         catBaixa.includes('transferência') || 
+                                         catBaixa.includes('fundo de caixa') ||
+                                         catBaixa.includes('aporte');
+                    
+                    if (!isFalsoGanho) {
+                        receitas += d.valorAbsoluto;
+                    }
                 }
             });
 
