@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>X-Fin Executivo | DRE & Inteligência</title>
-    
-    <!-- Tailwind CSS para Estilização -->
+
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Bibliotecas de Leitura de Excel e Gráficos -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
@@ -16,24 +13,25 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #1e293b; padding: 20px; }
-        
-        /* Estilos específicos do Radar */
+
         .radar-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 240px; padding-right: 4px; }
-        
+
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+        .pulse-loading { animation: pulse 1.4s ease-in-out infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
     </style>
 </head>
 <body>
 
-    <!-- CONTAINER PRINCIPAL -->
     <div class="bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden max-w-[1400px] mx-auto" style="height: calc(100vh - 40px);">
-        
+
         <!-- HEADER -->
         <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center shrink-0">
             <h1 class="text-[22px] font-black text-gray-800 flex items-center gap-3">
-                📊 Visão Executiva 
+                📊 Visão Executiva
                 <span class="bg-blue-500 text-white text-[10px] px-3 py-1 rounded-full uppercase tracking-wider font-bold">DRE & Inteligência</span>
             </h1>
             <div class="flex gap-3">
@@ -41,24 +39,26 @@
                     📥 Somar Planilha (Excel)
                 </label>
                 <input type="file" id="fileUpload" accept=".xlsx, .xls, .csv" class="hidden">
-                
+
+                <button id="btnExportCSV" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm">
+                    📤 Exportar CSV
+                </button>
+
                 <button id="btnClearDB" class="bg-red-500 hover:bg-red-600 text-white px-5 py-2 rounded-lg font-bold text-sm transition-colors shadow-sm">
                     Limpar Base
                 </button>
             </div>
         </div>
 
-        <!-- FILTROS PRINCIPAIS E MESES -->
+        <!-- FILTROS -->
         <div class="px-6 py-3 border-b border-gray-100 flex gap-4 items-center shrink-0 flex-wrap">
             <input type="text" id="searchInput" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 focus:bg-white focus:outline-none w-[250px]" placeholder="Buscar...">
             <select id="catFilter" class="px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 focus:bg-white focus:outline-none w-[200px]">
                 <option value="">Todas as Categorias</option>
             </select>
-            
-            <!-- Divisória visual -->
+
             <div class="h-6 w-px bg-gray-300 mx-1"></div>
-            
-            <!-- Botões de Meses Gerados Dinamicamente -->
+
             <div id="monthFilters" class="flex gap-2 flex-grow overflow-x-auto pb-1 items-center">
                 <span class="text-sm font-bold text-gray-400 italic">Suba planilhas para gerar os meses...</span>
             </div>
@@ -66,52 +66,83 @@
             <button id="btnLimparFiltros" class="bg-gray-100 text-gray-600 border border-gray-300 px-4 py-2 rounded-md font-bold text-sm hover:bg-gray-200 transition-colors">Limpar Tudo</button>
         </div>
 
-        <!-- CONTEÚDO SCROLLÁVEL -->
+        <!-- CONTEÚDO -->
         <div class="p-6 overflow-y-auto flex-grow flex flex-col gap-6 bg-gray-50">
-            
-            <div id="dbStatusInfo" class="text-xs font-bold text-blue-600 mb-[-10px]">Banco de Dados Local: 0 lançamentos carregados.</div>
+
+            <div id="dbStatusInfo" class="text-xs font-bold text-blue-600 mb-[-10px] pulse-loading">A carregar base de dados...</div>
 
             <!-- KPIs -->
             <div class="grid grid-cols-4 gap-4">
                 <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 border-t-4 border-t-emerald-500 flex flex-col justify-center">
                     <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Receitas (Entradas)</span>
-                    <h3 id="kpi-receitas" class="text-2xl font-black text-emerald-500">R$ 0,00</h3>
+                    <h3 id="kpi-receitas" class="text-2xl font-black text-emerald-500">—</h3>
                 </div>
                 <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 border-t-4 border-t-red-500 flex flex-col justify-center">
                     <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Despesas (Saídas)</span>
-                    <h3 id="kpi-despesas" class="text-2xl font-black text-red-500">R$ 0,00</h3>
+                    <h3 id="kpi-despesas" class="text-2xl font-black text-red-500">—</h3>
                 </div>
                 <div class="bg-blue-50 p-4 rounded-lg shadow-sm border border-blue-100 border-t-4 border-t-blue-500 flex flex-col justify-center">
                     <span class="text-[10px] text-blue-800 font-bold uppercase tracking-wider mb-1">Lucro Bruto</span>
-                    <h3 id="kpi-lucro" class="text-2xl font-black text-blue-700">R$ 0,00</h3>
+                    <h3 id="kpi-lucro" class="text-2xl font-black text-blue-700">—</h3>
                 </div>
                 <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 border-t-4 border-t-yellow-500 flex flex-col justify-center">
                     <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Margem Bruta (%)</span>
-                    <h3 id="kpi-margem" class="text-2xl font-black text-red-600">0.0%</h3>
+                    <h3 id="kpi-margem" class="text-2xl font-black text-red-600">—</h3>
                 </div>
             </div>
 
-            <!-- MEIO: GRÁFICO BARRAS + RADAR -->
+            <!-- 🔮 PROJEÇÃO DE FECHO -->
+            <div id="projecao-panel" class="bg-white p-5 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-purple-500 hidden">
+                <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
+                    <h3 class="text-[13px] font-bold text-gray-800 uppercase tracking-wider">🔮 Projeção de Fecho do Mês</h3>
+                    <span id="proj-mes-ref" class="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-1 rounded">—</span>
+                </div>
+                <div class="grid grid-cols-4 gap-6">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Ritmo Diário (Desp.)</span>
+                        <span id="proj-ritmo" class="text-xl font-black text-gray-800">—</span>
+                        <span id="proj-dias" class="text-[10px] text-gray-400 mt-1">—</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Fecho Projetado (Desp.)</span>
+                        <span id="proj-fecho-desp" class="text-xl font-black text-red-500">—</span>
+                        <span class="text-[10px] text-gray-400 mt-1">Extrapolação linear</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Fecho Projetado (Lucro)</span>
+                        <span id="proj-fecho-lucro" class="text-xl font-black text-blue-700">—</span>
+                        <span class="text-[10px] text-gray-400 mt-1">Receitas − Despesas</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">vs. Mês Anterior</span>
+                        <span id="proj-variacao" class="text-xl font-black text-gray-800">—</span>
+                        <span id="proj-mes-ant" class="text-[10px] text-gray-400 mt-1">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MEIO -->
             <div class="grid grid-cols-3 gap-6">
-                <!-- Gráfico Top 8 -->
                 <div class="col-span-2 bg-white p-5 rounded-lg shadow-sm border border-gray-200 flex flex-col">
                     <h3 class="text-[13px] font-bold text-gray-800 mb-4 uppercase tracking-wider border-b border-gray-100 pb-2">Despesas por Categoria (Top 8)</h3>
                     <div class="relative flex-grow min-h-[260px]">
                         <canvas id="chart-categoria"></canvas>
                     </div>
                 </div>
-                
-                <!-- Radar Inteligente Mês a Mês -->
+
                 <div class="col-span-1 bg-white p-5 rounded-lg shadow-sm border border-gray-200 border-l-4 border-l-red-500 flex flex-col">
-                    <h3 class="text-[13px] font-bold text-red-500 mb-1 uppercase tracking-wider">🚨 Radar de Inflação (CMV)</h3>
-                    <p class="text-[11px] text-gray-500 mb-4 border-b border-gray-100 pb-2">Alertas de aumento no ticket médio por Categoria.</p>
+                    <h3 class="text-[13px] font-bold text-red-500 mb-1 uppercase tracking-wider flex items-center gap-2">
+                        🚨 Radar de Inflação (CMV)
+                        <span id="radar-badge" class="hidden bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">0</span>
+                    </h3>
+                    <p class="text-[11px] text-gray-500 mb-4 border-b border-gray-100 pb-2">Ticket médio por categoria vs. mês anterior (base total, ignora filtros).</p>
                     <div id="radar-container" class="radar-list flex-grow">
                         <div class="text-center p-4 text-gray-400 text-xs mt-4">Carregue dados para analisar a inflação.</div>
                     </div>
                 </div>
             </div>
 
-            <!-- BASE: GRÁFICO DE LINHA -->
+            <!-- BASE -->
             <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-200 flex flex-col">
                 <h3 class="text-[13px] font-bold text-gray-800 mb-4 uppercase tracking-wider border-b border-gray-100 pb-2">📈 Fluxo Temporal de Despesas (Mapa de Pressão)</h3>
                 <div class="relative flex-grow min-h-[220px]">
@@ -123,34 +154,165 @@
     </div>
 
     <script>
-        // Registra Plugin de Labels dentro das barras
         Chart.register(ChartDataLabels);
 
-        // Constantes e Variáveis
-        const DB_KEY = 'xfin_database';
-        let baseDeDados = JSON.parse(localStorage.getItem(DB_KEY) || '[]');
+        // ==========================================
+        // INDEXEDDB — camada de persistência
+        // ==========================================
+        const DB_NAME = 'xfin_db';
+        const DB_VERSION = 1;
+        const STORE = 'lancamentos';
+        const LEGACY_KEY = 'xfin_database';
+
+        let dbPromise = null;
+
+        function abrirDB() {
+            if (dbPromise) return dbPromise;
+            dbPromise = new Promise((resolve, reject) => {
+                if (!window.indexedDB) {
+                    reject(new Error('IndexedDB não suportado neste navegador.'));
+                    return;
+                }
+                const req = indexedDB.open(DB_NAME, DB_VERSION);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE)) {
+                        const store = db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+                        store.createIndex('hash', 'hash', { unique: true });
+                        store.createIndex('dataISO', 'dataISO', { unique: false });
+                    }
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+            return dbPromise;
+        }
+
+        async function carregarTudo() {
+            const db = await abrirDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE, 'readonly');
+                const req = tx.objectStore(STORE).getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        // Adiciona em lote. Retorna { adicionados, duplicados }.
+        async function adicionarMuitos(rows) {
+            if (!rows.length) return { adicionados: 0, duplicados: 0 };
+            const db = await abrirDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE, 'readwrite');
+                const store = tx.objectStore(STORE);
+                let adicionados = 0;
+                let duplicados = 0;
+
+                rows.forEach(r => {
+                    const req = store.add(r);
+                    req.onsuccess = () => { adicionados++; };
+                    req.onerror = (ev) => {
+                        // Impede que a transação aborte por violação de unicidade
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        duplicados++;
+                    };
+                });
+
+                tx.oncomplete = () => resolve({ adicionados, duplicados });
+                tx.onerror = (e) => reject(e.target.error);
+                tx.onabort = () => resolve({ adicionados, duplicados });
+            });
+        }
+
+        async function limparTudo() {
+            const db = await abrirDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE, 'readwrite');
+                tx.objectStore(STORE).clear();
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        // Migração one-shot do localStorage antigo → IndexedDB
+        async function migrarDeLocalStorage() {
+            const raw = localStorage.getItem(LEGACY_KEY);
+            if (!raw) return 0;
+            try {
+                const antigos = JSON.parse(raw);
+                if (!Array.isArray(antigos) || antigos.length === 0) {
+                    localStorage.removeItem(LEGACY_KEY);
+                    return 0;
+                }
+                const prontos = antigos.map(d => {
+                    const limpo = { ...d };
+                    delete limpo.strData;
+                    delete limpo.id;
+                    limpo.hash = rowHash(limpo);
+                    return limpo;
+                });
+                const { adicionados } = await adicionarMuitos(prontos);
+                localStorage.removeItem(LEGACY_KEY);
+                console.log(`[migração] ${adicionados} registos migrados de localStorage → IndexedDB.`);
+                return adicionados;
+            } catch (e) {
+                console.error('[migração] falhou:', e);
+                return 0;
+            }
+        }
+
+        // ==========================================
+        // ESTADO
+        // ==========================================
+        let baseDeDados = [];
         let chartCatInst = null;
         let chartProjInst = null;
-        let selectedMonth = ''; 
+        let selectedMonth = '';
+        let ultimoConjuntoFiltrado = [];
 
-        // Elementos DOM
+        // DOM
         const fileUpload = document.getElementById('fileUpload');
         const btnClearDB = document.getElementById('btnClearDB');
+        const btnExportCSV = document.getElementById('btnExportCSV');
         const searchInput = document.getElementById('searchInput');
         const catFilter = document.getElementById('catFilter');
         const btnLimpar = document.getElementById('btnLimparFiltros');
         const dbStatusInfo = document.getElementById('dbStatusInfo');
         const monthFiltersContainer = document.getElementById('monthFilters');
+        const radarBadge = document.getElementById('radar-badge');
 
         // ==========================================
-        // UTILITÁRIOS E PARSE
+        // UTILITÁRIOS
         // ==========================================
+        const esc = s => String(s).replace(/[&<>"']/g, c => (
+            {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+        ));
+
+        const debounce = (fn, delay = 150) => {
+            let t;
+            return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+        };
+
+        const fmtBRL = v => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+        const NOMES_MES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        const nomeMes = m => {
+            if (!m) return '—';
+            const [a, mm] = m.split('-');
+            return `${NOMES_MES[parseInt(mm, 10) - 1]}/${a}`;
+        };
+
         function parseAmount(valStr) {
-            if (!valStr) return 0;
+            if (valStr === null || valStr === undefined || valStr === '') return 0;
             if (typeof valStr === 'number') return valStr;
             let limpo = String(valStr).replace('R$', '').replace(/\s/g, '');
             if (limpo.includes(',') && limpo.includes('.')) {
-                limpo = limpo.replace(/\./g, '').replace(',', '.');
+                if (limpo.lastIndexOf(',') > limpo.lastIndexOf('.')) {
+                    limpo = limpo.replace(/\./g, '').replace(',', '.');
+                } else {
+                    limpo = limpo.replace(/,/g, '');
+                }
             } else if (limpo.includes(',')) {
                 limpo = limpo.replace(',', '.');
             }
@@ -158,64 +320,108 @@
         }
 
         function parseDate(val) {
-            if (!val) return null;
-            if (typeof val === 'number') { 
+            if (val === null || val === undefined || val === '') return null;
+            if (typeof val === 'number') {
                 return new Date(Math.round((val - 25569) * 86400 * 1000)).toISOString().split('T')[0];
             }
-            const str = String(val);
-            const parts = str.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-            if (parts) return `${parts[3]}-${parts[2]}-${parts[1]}`;
-            return null; 
+            const s = String(val).trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+            const br = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+            if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+            return null;
         }
 
         const getVal = (keys, row) => {
-            for(let k of keys) {
-                const foundKey = Object.keys(row).find(rk => rk.toLowerCase().includes(k.toLowerCase()));
-                if (foundKey && row[foundKey] !== undefined) return row[foundKey];
+            const rowKeys = Object.keys(row);
+            for (const k of keys) {
+                const lk = k.toLowerCase();
+                const exact = rowKeys.find(rk => rk.toLowerCase() === lk);
+                if (exact !== undefined) return row[exact];
+                const starts = rowKeys.find(rk => rk.toLowerCase().startsWith(lk));
+                if (starts !== undefined) return row[starts];
+                const incl = rowKeys.find(rk => rk.toLowerCase().includes(lk));
+                if (incl !== undefined) return row[incl];
             }
             return '';
         };
 
+        const rowHash = d => `${d.dataISO || ''}|${d.fornecedor}|${d.categoria}|${d.valorOriginal}`;
+
+        const isFalsoGanho = cat => {
+            const c = (cat || '').toLowerCase();
+            return c.includes('saldo inicial') ||
+                   c.includes('transferência') ||
+                   c.includes('transferencia') ||
+                   c.includes('fundo de caixa') ||
+                   c.includes('aporte');
+        };
+
         // ==========================================
-        // UPLOAD E BANCO DE DADOS LOCAL
+        // UPLOAD
         // ==========================================
-        fileUpload.addEventListener('change', (e) => {
+        fileUpload.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
-                const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { raw: false });
-                
-                if (rawData && rawData.length > 0) {
-                    const processados = rawData.map(row => {
+            reader.onload = async function(ev) {
+                try {
+                    const workbook = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+                    const rawData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { raw: false });
+
+                    if (!rawData || rawData.length === 0) {
+                        alert('Ficheiro vazio ou sem linhas legíveis.');
+                        return;
+                    }
+
+                    const prontos = rawData.map(row => {
                         const rawValor = parseAmount(getVal(['Valor', 'Quantia', 'Total', 'Amount'], row));
                         const strData = getVal(['Pagamento', 'Data', 'Vencimento', 'Emissão'], row);
-                        return {
+                        const rec = {
                             dataISO: parseDate(strData),
-                            strData: strData,
                             fornecedor: String(getVal(['Fornecedor', 'Nome', 'Favorecido'], row) || 'Diversos').trim(),
                             categoria: String(getVal(['Categoria', 'Centro'], row) || 'Sem Categoria').trim(),
                             valorOriginal: rawValor,
                             valorAbsoluto: Math.abs(rawValor),
-                            isDespesa: rawValor < 0 
+                            isDespesa: rawValor < 0
                         };
-                    }).filter(d => d.valorAbsoluto > 0);
+                        if (rec.valorAbsoluto <= 0) return null;
+                        rec.hash = rowHash(rec);
+                        return rec;
+                    }).filter(Boolean);
 
-                    baseDeDados = [...baseDeDados, ...processados];
-                    localStorage.setItem(DB_KEY, JSON.stringify(baseDeDados));
-                    
-                    alert(`${processados.length} lançamentos adicionados à base de dados!`);
+                    if (!prontos.length) {
+                        alert('Nenhum lançamento válido encontrado (valores a zero ou em falta).');
+                        return;
+                    }
+
+                    const { adicionados, duplicados } = await adicionarMuitos(prontos);
+
+                    // Recarrega a partir da fonte de verdade
+                    baseDeDados = await carregarTudo();
+
+                    // Auto-seleciona o mês mais recente
+                    const meses = [...new Set(baseDeDados.map(d => d.dataISO?.substring(0,7)).filter(Boolean))].sort();
+                    if (meses.length > 0) selectedMonth = meses[meses.length - 1];
+
                     atualizarDashboard();
+
+                    const msg = `✅ ${adicionados} novo(s) lançamento(s) adicionado(s).` +
+                        (duplicados > 0 ? `\n⚠️ ${duplicados} duplicado(s) ignorado(s).` : '');
+                    alert(msg);
+
+                } catch (err) {
+                    console.error(err);
+                    alert('Erro ao ler a planilha ou gravar na base.');
                 }
             };
             reader.readAsArrayBuffer(file);
+            fileUpload.value = '';
         });
 
-        btnClearDB.addEventListener('click', () => {
-            if(confirm('Apagar todo o histórico financeiro salvo neste navegador?')) {
-                localStorage.removeItem(DB_KEY);
+        btnClearDB.addEventListener('click', async () => {
+            if (confirm('Apagar todo o histórico financeiro guardado neste navegador?')) {
+                await limparTudo();
                 baseDeDados = [];
                 selectedMonth = '';
                 atualizarDashboard();
@@ -223,99 +429,198 @@
         });
 
         // ==========================================
-        // RADAR DE INFLAÇÃO MÊS A MÊS (NOVO)
+        // EXPORTAR CSV
+        // ==========================================
+        btnExportCSV.addEventListener('click', () => {
+            if (ultimoConjuntoFiltrado.length === 0) {
+                alert('Nada para exportar com os filtros atuais.');
+                return;
+            }
+            const header = ['Data', 'Fornecedor', 'Categoria', 'Valor', 'Tipo'];
+            const rows = ultimoConjuntoFiltrado.map(d => [
+                d.dataISO || '',
+                d.fornecedor,
+                d.categoria,
+                d.valorOriginal.toFixed(2).replace('.', ','),
+                d.isDespesa ? 'Despesa' : 'Receita'
+            ]);
+            const csv = [header, ...rows]
+                .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'))
+                .join('\n');
+
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `xfin_export_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // ==========================================
+        // RADAR MoM
         // ==========================================
         function calcularRadarMoM(mesSelecionado, dadosTotais) {
             if (dadosTotais.length === 0) return { alertas: [], mesRef: null, mesAnt: null };
 
-            // Extrai todos os meses disponíveis e ordena cronologicamente
             const mesesSet = new Set();
             dadosTotais.forEach(d => { if (d.dataISO) mesesSet.add(d.dataISO.substring(0, 7)); });
             const mesesOrdenados = Array.from(mesesSet).sort();
 
             if (mesesOrdenados.length < 2) return { alertas: [], mesRef: null, mesAnt: null };
 
-            // Se não houver mês selecionado, pega automaticamente o mês mais recente cadastrado
-            let mesRef = mesSelecionado;
-            if (!mesRef) mesRef = mesesOrdenados[mesesOrdenados.length - 1]; 
-
+            let mesRef = mesSelecionado || mesesOrdenados[mesesOrdenados.length - 1];
             const idx = mesesOrdenados.indexOf(mesRef);
-            if (idx <= 0) return { alertas: [], mesRef: mesRef, mesAnt: null }; // Não há mês anterior a este
+            if (idx <= 0) return { alertas: [], mesRef, mesAnt: null };
 
             const mesAnt = mesesOrdenados[idx - 1];
-
             const statsAtual = {};
             const statsAnt = {};
 
-            // Agrupa os custos por categoria do mês atual e do mês anterior
             dadosTotais.forEach(d => {
-                if (d.isDespesa && d.categoria !== 'Sem Categoria') {
-                    const m = d.dataISO ? d.dataISO.substring(0, 7) : null;
-                    if (m === mesRef) {
-                        if (!statsAtual[d.categoria]) statsAtual[d.categoria] = { sum: 0, count: 0 };
-                        statsAtual[d.categoria].sum += d.valorAbsoluto;
-                        statsAtual[d.categoria].count += 1;
-                    } else if (m === mesAnt) {
-                        if (!statsAnt[d.categoria]) statsAnt[d.categoria] = { sum: 0, count: 0 };
-                        statsAnt[d.categoria].sum += d.valorAbsoluto;
-                        statsAnt[d.categoria].count += 1;
-                    }
+                if (!d.isDespesa || d.categoria === 'Sem Categoria') return;
+                const m = d.dataISO ? d.dataISO.substring(0, 7) : null;
+                if (m === mesRef) {
+                    if (!statsAtual[d.categoria]) statsAtual[d.categoria] = { sum: 0, count: 0 };
+                    statsAtual[d.categoria].sum += d.valorAbsoluto;
+                    statsAtual[d.categoria].count += 1;
+                } else if (m === mesAnt) {
+                    if (!statsAnt[d.categoria]) statsAnt[d.categoria] = { sum: 0, count: 0 };
+                    statsAnt[d.categoria].sum += d.valorAbsoluto;
+                    statsAnt[d.categoria].count += 1;
                 }
             });
 
             const alertas = [];
             Object.keys(statsAtual).forEach(cat => {
-                if (statsAnt[cat] && statsAnt[cat].count > 0) {
-                    const tkAtual = statsAtual[cat].sum / statsAtual[cat].count;
-                    const tkAnt = statsAnt[cat].sum / statsAnt[cat].count;
-                    
-                    // Alerta disparado apenas se a inflação/aumento for maior que 1%
-                    if (tkAtual > (tkAnt * 1.01)) { 
-                        alertas.push({ 
-                            cat, 
-                            aumento: (((tkAtual / tkAnt) - 1) * 100), 
-                            ticket: tkAtual,
-                            ticketAnt: tkAnt
+                if (statsAnt[cat] && statsAnt[cat].count > 0 && statsAtual[cat].count > 0) {
+                    const ticketAtual = statsAtual[cat].sum / statsAtual[cat].count;
+                    const ticketAnt   = statsAnt[cat].sum   / statsAnt[cat].count;
+                    if (ticketAtual > ticketAnt * 1.01) {
+                        alertas.push({
+                            cat,
+                            aumentoTicket: ((ticketAtual / ticketAnt) - 1) * 100,
+                            aumentoTotal:  ((statsAtual[cat].sum / statsAnt[cat].sum) - 1) * 100,
+                            ticketAtual, ticketAnt,
+                            totalAtual: statsAtual[cat].sum,
+                            totalAnt: statsAnt[cat].sum
                         });
                     }
                 }
             });
 
-            return { alertas: alertas.sort((a, b) => b.aumento - a.aumento), mesRef, mesAnt };
+            return { alertas: alertas.sort((a, b) => b.aumentoTicket - a.aumentoTicket), mesRef, mesAnt };
         }
 
         // ==========================================
-        // RENDERIZAÇÃO DOS BOTÕES DE MESES
+        // PROJEÇÃO DE FECHO
+        // ==========================================
+        function calcularProjecao(mesSelecionado, dados) {
+            const meses = [...new Set(dados.map(d => d.dataISO?.substring(0,7)).filter(Boolean))].sort();
+            if (!meses.length) return null;
+
+            const mesRef = mesSelecionado || meses[meses.length - 1];
+            const [ano, mes] = mesRef.split('-').map(Number);
+            const diasNoMes = new Date(ano, mes, 0).getDate();
+
+            const hoje = new Date();
+            const isMesAtual = hoje.getFullYear() === ano && (hoje.getMonth() + 1) === mes;
+
+            const diasComDados = dados
+                .filter(d => d.dataISO && d.dataISO.startsWith(mesRef))
+                .map(d => parseInt(d.dataISO.substring(8, 10), 10));
+            const ultimoDiaDados = diasComDados.length > 0 ? Math.max(...diasComDados) : 0;
+
+            let diasDecorridos;
+            if (isMesAtual) {
+                diasDecorridos = Math.min(Math.max(hoje.getDate(), ultimoDiaDados), diasNoMes);
+            } else {
+                diasDecorridos = ultimoDiaDados || diasNoMes;
+            }
+            if (diasDecorridos === 0) return null;
+
+            let despMes = 0, recMes = 0;
+            dados.forEach(d => {
+                if (!d.dataISO || !d.dataISO.startsWith(mesRef)) return;
+                if (d.isDespesa) despMes += d.valorAbsoluto;
+                else if (!isFalsoGanho(d.categoria)) recMes += d.valorAbsoluto;
+            });
+
+            const ritmoDiarioDesp = despMes / diasDecorridos;
+            const ritmoDiarioRec  = recMes / diasDecorridos;
+
+            const projDesp  = ritmoDiarioDesp * diasNoMes;
+            const projRec   = ritmoDiarioRec  * diasNoMes;
+            const projLucro = projRec - projDesp;
+
+            // Mês anterior
+            const dtAnt = new Date(ano, mes - 2, 1);
+            const mesAnt = `${dtAnt.getFullYear()}-${String(dtAnt.getMonth() + 1).padStart(2, '0')}`;
+            let despAnt = 0;
+            dados.forEach(d => {
+                if (d.isDespesa && d.dataISO && d.dataISO.startsWith(mesAnt)) despAnt += d.valorAbsoluto;
+            });
+            const variacao = despAnt > 0 ? ((projDesp / despAnt) - 1) * 100 : null;
+
+            return {
+                mesRef, mesAnt, diasNoMes, diasDecorridos, isMesAtual,
+                despMes, recMes, ritmoDiarioDesp,
+                projDesp, projRec, projLucro, despAnt, variacao
+            };
+        }
+
+        function renderizarProjecao() {
+            const panel = document.getElementById('projecao-panel');
+            const proj = calcularProjecao(selectedMonth, baseDeDados);
+
+            if (!proj) { panel.classList.add('hidden'); return; }
+            panel.classList.remove('hidden');
+
+            document.getElementById('proj-mes-ref').innerText =
+                `${nomeMes(proj.mesRef)} · ${proj.isMesAtual ? 'em curso' : 'fechado'}`;
+
+            document.getElementById('proj-ritmo').innerText = fmtBRL(proj.ritmoDiarioDesp);
+            document.getElementById('proj-dias').innerText = `${proj.diasDecorridos}/${proj.diasNoMes} dias`;
+
+            document.getElementById('proj-fecho-desp').innerText = fmtBRL(proj.projDesp);
+
+            const elLucro = document.getElementById('proj-fecho-lucro');
+            elLucro.innerText = fmtBRL(proj.projLucro);
+            elLucro.className = `text-xl font-black ${proj.projLucro >= 0 ? 'text-blue-700' : 'text-red-600'}`;
+
+            const elVar = document.getElementById('proj-variacao');
+            const elAnt = document.getElementById('proj-mes-ant');
+            if (proj.variacao === null) {
+                elVar.innerText = '—';
+                elVar.className = 'text-xl font-black text-gray-400';
+                elAnt.innerText = 'Sem base anterior';
+            } else {
+                elVar.innerText = `${proj.variacao >= 0 ? '+' : ''}${proj.variacao.toFixed(1)}%`;
+                elVar.className = `text-xl font-black ${proj.variacao >= 0 ? 'text-red-600' : 'text-emerald-600'}`;
+                elAnt.innerText = `vs ${nomeMes(proj.mesAnt)} (${fmtBRL(proj.despAnt)})`;
+            }
+        }
+
+        // ==========================================
+        // BOTÕES DE MÊS
         // ==========================================
         function renderizarBotoesMeses() {
             if (baseDeDados.length === 0) {
                 monthFiltersContainer.innerHTML = '<span class="text-sm font-bold text-gray-400 italic">Suba planilhas para gerar os meses...</span>';
                 return;
             }
-
             const mesesSet = new Set();
-            baseDeDados.forEach(d => {
-                if (d.dataISO) mesesSet.add(d.dataISO.substring(0, 7)); // Formato YYYY-MM
-            });
-
+            baseDeDados.forEach(d => { if (d.dataISO) mesesSet.add(d.dataISO.substring(0, 7)); });
             const mesesOrdenados = Array.from(mesesSet).sort();
-            const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-            
+
             monthFiltersContainer.innerHTML = '';
-
             mesesOrdenados.forEach(m => {
-                const [ano, mes] = m.split('-');
-                const mesIndex = parseInt(mes, 10) - 1;
-                const label = `${nomesMeses[mesIndex]}/${ano}`;
-
                 const btn = document.createElement('button');
                 const isSelected = selectedMonth === m;
-
-                btn.className = isSelected 
+                btn.className = isSelected
                     ? "bg-blue-600 text-white border border-blue-600 px-4 py-2 rounded-md font-bold text-sm shadow-sm transition-colors whitespace-nowrap"
                     : "bg-white text-gray-600 border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-md font-bold text-sm shadow-sm transition-colors whitespace-nowrap";
-                
-                btn.innerText = label;
+                btn.innerText = nomeMes(m);
                 btn.onclick = () => {
                     selectedMonth = selectedMonth === m ? '' : m;
                     atualizarDashboard();
@@ -325,14 +630,15 @@
         }
 
         // ==========================================
-        // ATUALIZAÇÃO DO DASHBOARD
+        // DASHBOARD
         // ==========================================
         function atualizarDashboard() {
-            dbStatusInfo.innerText = `Banco de Dados Local: ${baseDeDados.length} lançamentos acumulados.`;
-            
+            dbStatusInfo.classList.remove('pulse-loading');
+            dbStatusInfo.innerText = `Base local (IndexedDB): ${baseDeDados.length} lançamentos acumulados.`;
+
             renderizarBotoesMeses();
 
-            // Atualiza Select de Categorias
+            // Categorias
             const catSet = new Set(baseDeDados.map(d => d.categoria));
             const currentCat = catFilter.value;
             catFilter.innerHTML = '<option value="">Todas as Categorias</option>';
@@ -348,16 +654,15 @@
             const termo = searchInput.value.toLowerCase().trim();
             const catSelected = catFilter.value;
 
-            // Filtra os dados da tabela e gráficos principais
             const dadosFiltrados = baseDeDados.filter(d => {
-                let matchBusca = !termo || `${d.fornecedor} ${d.categoria}`.toLowerCase().includes(termo);
-                let matchCat = !catSelected || d.categoria === catSelected;
-                let matchMonth = !selectedMonth || (d.dataISO && d.dataISO.startsWith(selectedMonth));
+                const matchBusca = !termo || `${d.fornecedor} ${d.categoria}`.toLowerCase().includes(termo);
+                const matchCat   = !catSelected || d.categoria === catSelected;
+                const matchMonth = !selectedMonth || (d.dataISO && d.dataISO.startsWith(selectedMonth));
                 return matchBusca && matchCat && matchMonth;
             });
+            ultimoConjuntoFiltrado = dadosFiltrados;
 
-            let receitas = 0;
-            let despesas = 0;
+            let receitas = 0, despesas = 0;
             const aggCategoria = {};
             const aggDatas = {};
 
@@ -365,67 +670,73 @@
                 if (d.isDespesa) {
                     despesas += d.valorAbsoluto;
                     aggCategoria[d.categoria] = (aggCategoria[d.categoria] || 0) + d.valorAbsoluto;
-                    
                     if (d.dataISO) {
-                        const labelData = d.dataISO.substring(8,10) + '/' + d.dataISO.substring(5,7); 
-                        aggDatas[labelData] = (aggDatas[labelData] || 0) + d.valorAbsoluto;
+                        const chave = selectedMonth ? d.dataISO : d.dataISO.substring(0, 7);
+                        aggDatas[chave] = (aggDatas[chave] || 0) + d.valorAbsoluto;
                     }
-                } else {
-                    const catBaixa = d.categoria.toLowerCase();
-                    const isFalsoGanho = catBaixa.includes('saldo inicial') || 
-                                         catBaixa.includes('transferência') || 
-                                         catBaixa.includes('fundo de caixa') ||
-                                         catBaixa.includes('aporte');
-                    if (!isFalsoGanho) {
-                        receitas += d.valorAbsoluto;
-                    }
+                } else if (!isFalsoGanho(d.categoria)) {
+                    receitas += d.valorAbsoluto;
                 }
             });
 
-            // 1. KPIs
+            // KPIs
+            const vazio = baseDeDados.length === 0;
             const lucroBruto = receitas - despesas;
-            const margem = receitas > 0 ? ((lucroBruto / receitas) * 100).toFixed(1) : (despesas > 0 ? -100 : 0);
+            const margem = receitas > 0
+                ? ((lucroBruto / receitas) * 100).toFixed(1)
+                : (despesas > 0 ? -100 : 0);
 
-            document.getElementById('kpi-receitas').innerText = receitas.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-            document.getElementById('kpi-despesas').innerText = despesas.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-            
-            const elLucro = document.getElementById('kpi-lucro');
-            elLucro.innerText = lucroBruto.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
-            elLucro.className = `text-2xl font-black ${lucroBruto >= 0 ? 'text-blue-700' : 'text-red-600'}`;
+            const elRec = document.getElementById('kpi-receitas');
+            const elDes = document.getElementById('kpi-despesas');
+            const elLuc = document.getElementById('kpi-lucro');
+            const elMar = document.getElementById('kpi-margem');
 
-            const elMargem = document.getElementById('kpi-margem');
-            elMargem.innerText = `${margem}%`;
-            elMargem.className = `text-2xl font-black ${margem >= 0 ? 'text-emerald-600' : 'text-red-600'}`;
+            elRec.innerText = vazio ? '—' : fmtBRL(receitas);
+            elDes.innerText = vazio ? '—' : fmtBRL(despesas);
+            elLuc.innerText = vazio ? '—' : fmtBRL(lucroBruto);
+            elLuc.className = `text-2xl font-black ${lucroBruto >= 0 ? 'text-blue-700' : 'text-red-600'}`;
+            elMar.innerText = vazio ? '—' : `${margem}%`;
+            elMar.className = `text-2xl font-black ${margem >= 0 ? 'text-emerald-600' : 'text-red-600'}`;
 
-            // 2. RADAR DE INFLAÇÃO COM MINI-GRÁFICOS
+            // Projeção
+            renderizarProjecao();
+
+            // RADAR
             const radarContainer = document.getElementById('radar-container');
             const radarData = calcularRadarMoM(selectedMonth, baseDeDados);
-            
+
+            if (radarData.alertas.length > 0) {
+                radarBadge.innerText = radarData.alertas.length;
+                radarBadge.classList.remove('hidden');
+            } else {
+                radarBadge.classList.add('hidden');
+            }
+
             radarContainer.innerHTML = '';
-            
+
             if (baseDeDados.length === 0) {
                 radarContainer.innerHTML = `<div class="text-center p-4 text-gray-400 text-xs mt-4">Carregue planilhas para gerar o radar.</div>`;
             } else if (!radarData.mesAnt) {
                 radarContainer.innerHTML = `<div class="text-center p-4 text-gray-400 text-xs mt-4">Necessário dados de pelo menos dois meses para comparar a inflação.</div>`;
             } else if (radarData.alertas.length === 0) {
-                radarContainer.innerHTML = `<div class="text-center p-4 text-emerald-600 text-xs font-bold bg-emerald-50 rounded mt-4">✅ Nenhum aumento detectado de ${radarData.mesAnt} para ${radarData.mesRef}.</div>`;
+                radarContainer.innerHTML = `<div class="text-center p-4 text-emerald-600 text-xs font-bold bg-emerald-50 rounded mt-4">✅ Nenhum aumento detectado de ${esc(radarData.mesAnt)} para ${esc(radarData.mesRef)}.</div>`;
             } else {
-                radarContainer.innerHTML = `<div class="text-[10px] text-gray-500 mb-3 font-bold uppercase tracking-wider text-center bg-gray-100 py-1 rounded">Comparando: ${radarData.mesAnt} ➔ ${radarData.mesRef}</div>`;
-                
+                radarContainer.innerHTML = `<div class="text-[10px] text-gray-500 mb-3 font-bold uppercase tracking-wider text-center bg-gray-100 py-1 rounded">Comparando: ${esc(radarData.mesAnt)} ➔ ${esc(radarData.mesRef)}</div>`;
+
                 radarData.alertas.slice(0, 5).forEach(alerta => {
-                    // Cálculo percentual para a barra visual
-                    const maxTk = Math.max(alerta.ticket, alerta.ticketAnt);
-                    const wAtual = (alerta.ticket / maxTk) * 100;
-                    const wAnt = (alerta.ticketAnt / maxTk) * 100;
+                    const maxTk = Math.max(alerta.ticketAtual, alerta.ticketAnt) || 1;
+                    const wAtual = (alerta.ticketAtual / maxTk) * 100;
+                    const wAnt   = (alerta.ticketAnt   / maxTk) * 100;
+                    const totalDelta = alerta.aumentoTotal >= 0
+                        ? `↑ ${alerta.aumentoTotal.toFixed(1)}% no total`
+                        : `↓ ${Math.abs(alerta.aumentoTotal).toFixed(1)}% no total`;
 
                     radarContainer.innerHTML += `
                         <div class="mb-3 bg-white border border-red-100 shadow-sm flex flex-col p-3 rounded-lg border-l-4 border-l-red-500">
                             <div class="flex justify-between items-center w-full mb-2">
-                                <div class="text-[12px] font-bold text-gray-800">${alerta.cat}</div>
-                                <div class="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] font-bold">↑ ${alerta.aumento.toFixed(1)}%</div>
+                                <div class="text-[12px] font-bold text-gray-800">${esc(alerta.cat)}</div>
+                                <div class="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] font-bold">↑ ${alerta.aumentoTicket.toFixed(1)}% ticket</div>
                             </div>
-                            
-                            <!-- Gráfico Visual Intuitivo -->
                             <div class="w-full flex flex-col gap-1.5 mt-1">
                                 <div class="flex items-center gap-2 text-[10px] text-gray-500">
                                     <span class="w-10 font-bold">Antes:</span>
@@ -435,84 +746,108 @@
                                 <div class="flex items-center gap-2 text-[10px] text-red-600 font-bold">
                                     <span class="w-10">Agora:</span>
                                     <div class="h-2 bg-red-50 rounded-full flex-grow overflow-hidden"><div class="h-2 bg-red-500 rounded-full" style="width: ${wAtual}%"></div></div>
-                                    <span class="w-16 text-right">R$ ${alerta.ticket.toFixed(2)}</span>
+                                    <span class="w-16 text-right">R$ ${alerta.ticketAtual.toFixed(2)}</span>
                                 </div>
                             </div>
+                            <div class="text-[10px] text-gray-500 mt-2 text-right italic">${totalDelta}</div>
                         </div>
                     `;
                 });
             }
 
-            // 3. Gráficos Chart.js
-            if (chartCatInst) chartCatInst.destroy();
-            if (chartProjInst) chartProjInst.destroy();
-
+            // GRÁFICO CATEGORIA
             const topCategorias = Object.entries(aggCategoria).sort((a, b) => b[1] - a[1]).slice(0, 8);
-            
-            const ctxCat = document.getElementById('chart-categoria').getContext('2d');
-            chartCatInst = new Chart(ctxCat, {
-                type: 'bar',
-                data: {
-                    labels: topCategorias.map(x => x[0].length > 25 ? x[0].substring(0, 25) + '...' : x[0]),
-                    datasets: [{
-                        data: topCategorias.map(x => x[1]),
-                        backgroundColor: '#ef4444',
-                        borderRadius: 4
-                    }]
-                },
-                options: { 
-                    responsive: true, maintainAspectRatio: false, 
-                    plugins: { 
-                        legend: { display: false },
-                        datalabels: { 
-                            color: '#fff', align: 'end', anchor: 'start', offset: 10, rotation: -90, 
-                            font: { weight: 'bold', size: 12 }, 
-                            formatter: v => v.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}) 
-                        }
+            const catLabels = topCategorias.map(x => x[0].length > 25 ? x[0].substring(0, 25) + '...' : x[0]);
+            const catValues = topCategorias.map(x => x[1]);
+
+            if (chartCatInst) {
+                chartCatInst.data.labels = catLabels;
+                chartCatInst.data.datasets[0].data = catValues;
+                chartCatInst.update();
+            } else {
+                chartCatInst = new Chart(document.getElementById('chart-categoria').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: catLabels,
+                        datasets: [{ data: catValues, backgroundColor: '#ef4444', borderRadius: 4 }]
                     },
-                    scales: { x: { ticks: { maxRotation: 0, autoSkip: false, font: {size: 10} } } }
-                }
-            });
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            datalabels: {
+                                color: '#fff', align: 'end', anchor: 'start', offset: 10, rotation: -90,
+                                font: { weight: 'bold', size: 12 },
+                                formatter: v => fmtBRL(v)
+                            }
+                        },
+                        scales: { x: { ticks: { maxRotation: 0, autoSkip: false, font: { size: 10 } } } }
+                    }
+                });
+            }
 
-            const datasOrdenadas = Object.keys(aggDatas).sort((a, b) => {
-                const [d1, m1] = a.split('/'); const [d2, m2] = b.split('/');
-                return (m1 - m2) || (d1 - d2);
-            });
+            // GRÁFICO TEMPORAL
+            const datasOrdenadas = Object.keys(aggDatas).sort();
+            const labelsTemp = datasOrdenadas.map(k => selectedMonth
+                ? k.substring(8, 10) + '/' + k.substring(5, 7)
+                : k.substring(5, 7) + '/' + k.substring(0, 4));
+            const valoresTemp = datasOrdenadas.map(k => aggDatas[k]);
 
-            const ctxProj = document.getElementById('chart-projecao').getContext('2d');
-            chartProjInst = new Chart(ctxProj, {
-                type: 'line',
-                data: {
-                    labels: datasOrdenadas,
-                    datasets: [{
-                        label: 'Despesas',
-                        data: datasOrdenadas.map(d => aggDatas[d]),
-                        borderColor: '#f59e0b',
-                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                        borderWidth: 3, fill: true, tension: 0.3,
-                        pointBackgroundColor: '#d97706', pointRadius: 4
-                    }]
-                },
-                options: { 
-                    responsive: true, maintainAspectRatio: false, 
-                    plugins: { legend: { display: false }, datalabels: { display: false } },
-                    scales: { y: { beginAtZero: true } }
-                }
-            });
+            if (chartProjInst) {
+                chartProjInst.data.labels = labelsTemp;
+                chartProjInst.data.datasets[0].data = valoresTemp;
+                chartProjInst.update();
+            } else {
+                chartProjInst = new Chart(document.getElementById('chart-projecao').getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: labelsTemp,
+                        datasets: [{
+                            label: 'Despesas',
+                            data: valoresTemp,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            borderWidth: 3, fill: true, tension: 0.3,
+                            pointBackgroundColor: '#d97706', pointRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, datalabels: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
         }
 
-        // Eventos de Filtro
-        [searchInput, catFilter].forEach(el => el.addEventListener('input', atualizarDashboard));
-        
+        // ==========================================
+        // EVENTOS
+        // ==========================================
+        searchInput.addEventListener('input', debounce(atualizarDashboard, 150));
+        catFilter.addEventListener('change', atualizarDashboard);
+
         btnLimpar.addEventListener('click', () => {
-            searchInput.value = ''; 
-            catFilter.value = ''; 
+            searchInput.value = '';
+            catFilter.value = '';
             selectedMonth = '';
             atualizarDashboard();
         });
 
-        // Init
-        atualizarDashboard();
+        // ==========================================
+        // BOOT
+        // ==========================================
+        (async () => {
+            try {
+                await migrarDeLocalStorage();
+                baseDeDados = await carregarTudo();
+            } catch (e) {
+                console.error(e);
+                dbStatusInfo.innerText = 'Erro ao abrir a base local. Funcionalidade limitada.';
+                dbStatusInfo.classList.remove('pulse-loading');
+                dbStatusInfo.classList.add('text-red-600');
+            }
+            atualizarDashboard();
+        })();
     </script>
 </body>
 </html>
