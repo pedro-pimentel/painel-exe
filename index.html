@@ -198,7 +198,6 @@
             });
         }
 
-        // Adiciona em lote. Retorna { adicionados, duplicados }.
         async function adicionarMuitos(rows) {
             if (!rows.length) return { adicionados: 0, duplicados: 0 };
             const db = await abrirDB();
@@ -212,7 +211,6 @@
                     const req = store.add(r);
                     req.onsuccess = () => { adicionados++; };
                     req.onerror = (ev) => {
-                        // Impede que a transação aborte por violação de unicidade
                         ev.preventDefault();
                         ev.stopPropagation();
                         duplicados++;
@@ -235,7 +233,6 @@
             });
         }
 
-        // Migração one-shot do localStorage antigo → IndexedDB
         async function migrarDeLocalStorage() {
             const raw = localStorage.getItem(LEGACY_KEY);
             if (!raw) return 0;
@@ -347,12 +344,25 @@
 
         const rowHash = d => `${d.dataISO || ''}|${d.fornecedor}|${d.categoria}|${d.valorOriginal}`;
 
+        // ==========================================
+        // CATEGORIAS IGNORADAS (movimentos internos)
+        // ==========================================
+        const CATEGORIAS_IGNORADAS = [
+            'frente de caixa',
+            'fundo de caixa'
+        ];
+
+        const isCategoriaIgnorada = cat => {
+            const c = (cat || '').toLowerCase().trim();
+            return CATEGORIAS_IGNORADAS.some(ig => c.includes(ig));
+        };
+
+        // Receitas "falsas" (aportes, transferências) — não contam como faturação
         const isFalsoGanho = cat => {
             const c = (cat || '').toLowerCase();
             return c.includes('saldo inicial') ||
                    c.includes('transferência') ||
                    c.includes('transferencia') ||
-                   c.includes('fundo de caixa') ||
                    c.includes('aporte');
         };
 
@@ -397,10 +407,8 @@
 
                     const { adicionados, duplicados } = await adicionarMuitos(prontos);
 
-                    // Recarrega a partir da fonte de verdade
                     baseDeDados = await carregarTudo();
 
-                    // Auto-seleciona o mês mais recente
                     const meses = [...new Set(baseDeDados.map(d => d.dataISO?.substring(0,7)).filter(Boolean))].sort();
                     if (meses.length > 0) selectedMonth = meses[meses.length - 1];
 
@@ -478,7 +486,10 @@
             const statsAnt = {};
 
             dadosTotais.forEach(d => {
-                if (!d.isDespesa || d.categoria === 'Sem Categoria') return;
+                if (!d.isDespesa) return;
+                if (d.categoria === 'Sem Categoria') return;
+                if (isCategoriaIgnorada(d.categoria)) return; // 🔥 ignora frente/fundo de caixa
+
                 const m = d.dataISO ? d.dataISO.substring(0, 7) : null;
                 if (m === mesRef) {
                     if (!statsAtual[d.categoria]) statsAtual[d.categoria] = { sum: 0, count: 0 };
@@ -527,7 +538,7 @@
             const isMesAtual = hoje.getFullYear() === ano && (hoje.getMonth() + 1) === mes;
 
             const diasComDados = dados
-                .filter(d => d.dataISO && d.dataISO.startsWith(mesRef))
+                .filter(d => d.dataISO && d.dataISO.startsWith(mesRef) && !isCategoriaIgnorada(d.categoria))
                 .map(d => parseInt(d.dataISO.substring(8, 10), 10));
             const ultimoDiaDados = diasComDados.length > 0 ? Math.max(...diasComDados) : 0;
 
@@ -542,6 +553,7 @@
             let despMes = 0, recMes = 0;
             dados.forEach(d => {
                 if (!d.dataISO || !d.dataISO.startsWith(mesRef)) return;
+                if (isCategoriaIgnorada(d.categoria)) return; // 🔥 ignora frente/fundo de caixa
                 if (d.isDespesa) despMes += d.valorAbsoluto;
                 else if (!isFalsoGanho(d.categoria)) recMes += d.valorAbsoluto;
             });
@@ -553,12 +565,16 @@
             const projRec   = ritmoDiarioRec  * diasNoMes;
             const projLucro = projRec - projDesp;
 
-            // Mês anterior
             const dtAnt = new Date(ano, mes - 2, 1);
             const mesAnt = `${dtAnt.getFullYear()}-${String(dtAnt.getMonth() + 1).padStart(2, '0')}`;
             let despAnt = 0;
             dados.forEach(d => {
-                if (d.isDespesa && d.dataISO && d.dataISO.startsWith(mesAnt)) despAnt += d.valorAbsoluto;
+                if (d.isDespesa &&
+                    d.dataISO &&
+                    d.dataISO.startsWith(mesAnt) &&
+                    !isCategoriaIgnorada(d.categoria)) {   // 🔥 ignora frente/fundo de caixa
+                    despAnt += d.valorAbsoluto;
+                }
             });
             const variacao = despAnt > 0 ? ((projDesp / despAnt) - 1) * 100 : null;
 
@@ -638,12 +654,12 @@
 
             renderizarBotoesMeses();
 
-            // Categorias
+            // Categorias — esconde as ignoradas
             const catSet = new Set(baseDeDados.map(d => d.categoria));
             const currentCat = catFilter.value;
             catFilter.innerHTML = '<option value="">Todas as Categorias</option>';
             Array.from(catSet).sort().forEach(c => {
-                if (c && c !== 'Sem Categoria') {
+                if (c && c !== 'Sem Categoria' && !isCategoriaIgnorada(c)) {   // 🔥
                     const opt = document.createElement('option');
                     opt.value = c; opt.innerText = c;
                     if (c === currentCat) opt.selected = true;
@@ -667,6 +683,8 @@
             const aggDatas = {};
 
             dadosFiltrados.forEach(d => {
+                if (isCategoriaIgnorada(d.categoria)) return;   // 🔥 ignora frente/fundo de caixa
+
                 if (d.isDespesa) {
                     despesas += d.valorAbsoluto;
                     aggCategoria[d.categoria] = (aggCategoria[d.categoria] || 0) + d.valorAbsoluto;
